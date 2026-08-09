@@ -12,6 +12,7 @@ const io = new Server(httpServer, {
 }); // <--- Socket.IO attached here
 
 const rooms = {};
+const documents = new Map();
 
 io.on("connection", (socket) => {
   console.log("✅ Server: Client connected with ID:", socket.id);
@@ -23,6 +24,16 @@ io.on("connection", (socket) => {
     socket.emit("pong_client", "Hello back from Server!");
   });
 
+  socket.on("text-change", (docText) => {
+    documents.set(socket.data.roomId, docText);
+    socket.to(socket.data.roomId).emit("text-change", docText);
+    console.log(documents);
+  });
+
+  //   socket.on('user-joined', roomId => {
+  //     socket.to(roomId).emit('user-joined', updatedRoomSize)
+  //   })
+
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
     socket.data.roomId = roomId;
@@ -30,11 +41,17 @@ io.on("connection", (socket) => {
     if (!rooms[roomId]) rooms[roomId] = new Set();
     rooms[roomId].add(socket.id);
 
+    if (documents.get(socket.data.roomId) == undefined) {
+      documents.set(socket.data.roomId, "");
+      socket.emit("get-text", "");
+    } else {
+      socket.emit("get-text", documents.get(socket.data.roomId));
+    }
+
     const roomSize = rooms[roomId].size;
-    console.log(roomSize);
 
     socket.emit("room-state", roomSize); // back to just this user
-    socket.to(roomId).emit("user-joined", roomSize); // to everyone else in the room
+     socket.to(roomId).emit("user-joined", roomSize); // to everyone else in the room
   });
 
   socket.on("disconnect", () => {
