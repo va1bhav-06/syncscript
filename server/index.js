@@ -1,7 +1,7 @@
 // server.js
-const express = require("express");
-const { createServer } = require("http");
-const { Server } = require("socket.io");
+import express from "express";
+import {createServer} from "http";
+import {Server} from "socket.io";
 
 const app = express();
 const httpServer = createServer(app);
@@ -30,10 +30,6 @@ io.on("connection", (socket) => {
     console.log(documents);
   });
 
-  //   socket.on('user-joined', roomId => {
-  //     socket.to(roomId).emit('user-joined', updatedRoomSize)
-  //   })
-
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
     socket.data.roomId = roomId;
@@ -51,7 +47,7 @@ io.on("connection", (socket) => {
     const roomSize = rooms[roomId].size;
 
     socket.emit("room-state", roomSize); // back to just this user
-     socket.to(roomId).emit("user-joined", roomSize); // to everyone else in the room
+    socket.to(roomId).emit("user-joined", roomSize); // to everyone else in the room
   });
 
   socket.on("disconnect", () => {

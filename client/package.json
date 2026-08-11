@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -13,7 +13,9 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "y-websocket": "^3.1.0",
+    "yjs": "^13.6.32"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
