@@ -1,7 +1,7 @@
 // server.js
 import express from "express";
-import {createServer} from "http";
-import {Server} from "socket.io";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 const app = express();
 const httpServer = createServer(app);
@@ -27,15 +27,21 @@ io.on("connection", (socket) => {
   socket.on("text-change", (docText) => {
     documents.set(socket.data.roomId, docText);
     socket.to(socket.data.roomId).emit("text-change", docText);
-    console.log(documents);
   });
 
-  socket.on("join-room", (roomId) => {
+  socket.on("join-room", (roomId, username) => {
     socket.join(roomId);
     socket.data.roomId = roomId;
 
     if (!rooms[roomId]) rooms[roomId] = new Set();
-    rooms[roomId].add(socket.id);
+    const mySet = rooms[roomId];
+    for (const value of mySet) {
+      for (const key in value)
+        if (value.username == username) socket.emit("change-username");
+    }
+    const avtar_url = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${username}`;
+    rooms[roomId].add({ socket_id: socket.id, username, avtar_url });
+    // console.log("join-room");
 
     if (documents.get(socket.data.roomId) == undefined) {
       documents.set(socket.data.roomId, "");
@@ -50,12 +56,22 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("user-joined", roomSize); // to everyone else in the room
   });
 
+  socket.on("get-user", (roomId, socket_id) => {
+    const roomSet = rooms[roomId];
+    const listOfUser = Array.from(roomSet).filter(set => set.socket_id != socket_id);
+    console.log(listOfUser);
+    io.to(roomId).emit("get-users-list", listOfUser);
+  });
+
   socket.on("disconnect", () => {
     const roomId = socket.data.roomId;
     if (roomId && rooms[roomId]) {
-      rooms[roomId].delete(socket.id);
+      for (const obj of rooms[roomId]) {
+        if (obj.socket_id == socket.id) rooms[roomId].delete(obj);
+      }
       socket.to(roomId).emit("user-left", rooms[roomId].size);
     }
+    if (rooms[roomId]) if (rooms[roomId].size == 0) delete rooms[roomId];
   });
 });
 
