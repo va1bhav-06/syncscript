@@ -2,6 +2,7 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { isSymbolObject } from "util/types";
 
 const app = express();
 const httpServer = createServer(app);
@@ -29,7 +30,7 @@ io.on("connection", (socket) => {
     socket.to(socket.data.roomId).emit("text-change", docText);
   });
 
-  socket.on("join-room", (roomId, username) => {
+  socket.on("join-room", (roomId, user, socket_id) => {
     socket.join(roomId);
     socket.data.roomId = roomId;
 
@@ -37,11 +38,20 @@ io.on("connection", (socket) => {
     const mySet = rooms[roomId];
     for (const value of mySet) {
       for (const key in value)
-        if (value.username == username) socket.emit("change-username");
+        if (value.username == user.name || value.color == user.color)
+          socket.emit("change-username");
     }
-    const avtar_url = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${username}`;
-    rooms[roomId].add({ socket_id: socket.id, username, avtar_url });
-    // console.log("join-room");
+    const avtar_url = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.name}`;
+    
+    const obj = {
+      socket_id,
+      username: user.name,
+      avtar_url,
+      color: user.color
+    }
+    rooms[roomId].add(obj);
+
+    socket.emit("update-awareness", obj);
 
     if (documents.get(socket.data.roomId) == undefined) {
       documents.set(socket.data.roomId, "");
@@ -56,12 +66,11 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("user-joined", roomSize); // to everyone else in the room
   });
 
-  socket.on("get-user", (roomId, socket_id) => {
-    const roomSet = rooms[roomId];
-    const listOfUser = Array.from(roomSet).filter(set => set.socket_id != socket_id);
-    console.log(listOfUser);
-    io.to(roomId).emit("get-users-list", listOfUser);
-  });
+  // socket.on("get-user", (roomId, socket_id) => {
+  //   const roomSet = rooms[roomId];
+  //   const listOfUser = Array.from(roomSet)
+  //   socket.emit("get-users-list", listOfUser);
+  // });
 
   socket.on("disconnect", () => {
     const roomId = socket.data.roomId;

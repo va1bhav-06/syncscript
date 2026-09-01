@@ -11,7 +11,6 @@ const SERVER_URL = "http://localhost:5000";
 const adjectives = ["Swift", "Cosmic", "Neon", "Silent", "Brave", "Clever"];
 const nouns = ["Falcon", "Pixel", "Panther", "Wizard", "Voyager", "Echo"];
 
-
 const getUsername = () => {
   const username =
     adjectives[Math.floor(Math.random() * adjectives.length)] +
@@ -22,10 +21,8 @@ const getUsername = () => {
 
 // utils/user.js
 function generateUserId() {
-  const id = crypto.randomUUID();
   return {
-    id,
-    name: `User-${id.slice(-4)}`,
+    name: getUsername(),
     color:
       "#" +
       Math.floor(Math.random() * 0xffffff)
@@ -35,13 +32,13 @@ function generateUserId() {
 }
 
 function getOrCreateLocalUser() {
-  const cached = localStorage.getItem("syncscript-user");
-  if (cached) {
-    return JSON.parse(cached);
-  }
+  // const cached = localStorage.getItem("syncscript-user");
+  // if (cached) {
+  //   return JSON.parse(cached);
+  // }
 
   const user = generateUserId();
-  localStorage.setItem("syncscript-user", JSON.stringify(user));
+  // localStorage.setItem("syncscript-user", JSON.stringify(user));
   return user;
 }
 
@@ -71,7 +68,6 @@ function App() {
 
     //Create awareness instance
     const awareness = new Awareness(ydoc);
-
     //Attach to provider
 
     const provider = new WebsocketProvider(
@@ -87,25 +83,6 @@ function App() {
 
     const ytext = ydoc.getText("shared-text");
     ytextRef.current = ytext;
-
-    const user = getOrCreateLocalUser();
-    //Set user info (name, color, etc.)
-    provider.awareness.setLocalStateField("user", user);
-
-    awareness.on("change", () => {
-      const states = awareness.getStates();
-      const cursors = {};
-      states.forEach((state, clientId) => {
-        if (clientId !== awareness.clientID && state.cursor !== undefined) {
-          cursors[clientId] = {
-            position: state.cursor,
-            name: state.user?.name,
-            color: state.user?.color,
-          };
-        }
-      });
-      setRemoteCursors(cursors);
-    });
 
     // 2. WAIT FOR INITIAL SYNC FROM SERVER BEFORE SETTING TEXT!
     provider.on("sync", (isSyncedSuccessfully) => {
@@ -127,23 +104,52 @@ function App() {
 
     // 4. Socket.io Setup
     const socket = io(SERVER_URL);
-    socketRef.current = socket;
+
+    let user = {};
 
     socket.on("connect", () => {
+      socketRef.current = socket;
       setStatus("connected");
-      const username = getUsername();
-      socket.emit("join-room", roomId, username);
+      user = getOrCreateLocalUser();
+      socket.emit("join-room", roomId, user, socketRef.current.id);
 
       socket.emit("get-user", roomId, socketRef.current.id);
+
+      socket.on("change-username", () => {
+        user = getOrCreateLocalUser();
+        socket.emit("join-room", roomId, user, socketRef.current.id);
+      });
+
+      socket.on("update-awareness", (obj) => {
+        provider.awareness.setLocalStateField("user", obj);
+      });
+
+      awareness.on("change", () => {
+        const states = awareness.getStates();
+        let usersArr = [];
+        for (const [key, value] of states) {
+          const socketId = value?.user?.socket_id;
+          if (socketId && socketId !== socketRef.current?.id) {
+            usersArr.push(value.user);
+          }
+        }
+        setUsersData(usersArr);
+        const cursors = {};
+        states.forEach((state, clientId) => {
+          if (clientId !== awareness.clientID && state.cursor !== undefined) {
+            cursors[clientId] = {
+              position: state.cursor,
+              name: state.user?.username,
+              color: state.user?.color,
+            };
+          }
+        });
+        setRemoteCursors(cursors);
+      });
 
       socket.on("get-users-list", (listOfUser) => {
         setUsersData(listOfUser);
       });
-    });
-
-    socket.on("change-username", () => {
-      const username = getUsername();
-      socket.emit("join-room", roomId, username);
     });
 
     socket.on("room-state", (size) => setRoomSize(size));

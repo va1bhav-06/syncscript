@@ -1,14 +1,14 @@
 import "./index.css";
 
 const GetUserProfile = ({ user }) => {
-  console.log(user);
   const { username, avtar_url } = user;
+  console.log(username)
   return (
     <li>
       <div className="tooltip">
         <img src={avtar_url} className="profile-avatar" alt={username} />
         <span className="tooltiptext">{username}</span>
-      </div>
+      </div>  
     </li>
   );
 };
@@ -19,7 +19,7 @@ const Navbar = ({ usersData }) => {
       <h1 className="navbar-heading">SyncScript</h1>
       <ul className="profile-list">
         {usersData
-          ? usersData.map((user) => (
+          ? usersData.map(user => (
               <GetUserProfile key={user.socket_id} user={user} />
             ))
           : null}
